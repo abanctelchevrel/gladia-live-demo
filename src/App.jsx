@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
+import audio from './assets/audio.wav'
 import viteLogo from '/vite.svg'
 import './App.css'
-
 
 
 function App() {
@@ -17,6 +17,7 @@ function App() {
         console.log(`WS Url '${query}'`);
         setWsUrl(query);
         console.log(wsUrl)
+        console.log(audio)
 
       } 
 
@@ -24,9 +25,38 @@ function App() {
         console.log("Starting transcription"); 
         console.log(wsUrl)
 
-        const localSocket = new WebSocket(wsUrl);
-        setSocket(localSocket);
+        const socket = new WebSocket(wsUrl);
+        setSocket(socket);
+        socket.addEventListener("message", function(event) {
+          // All the messages we are sending are in JSON format
+          const message = JSON.parse(event.data.toString());
+          console.log(message);
+        });
       
+        socket.onopen = () => {
+          console.log("WebSocket connection established");
+          
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+              console.log("Microphone access granted");
+              
+              const mediaRecorder = new MediaRecorder(stream);
+              mediaRecorder.start(250); // Send audio chunks every 250ms
+              
+              mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+                  socket.send(event.data);
+                }
+              };
+            })
+            .catch(err => {
+              console.error("Error accessing microphone:", err);
+            });
+        };
+
+        socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
       }
 
 
