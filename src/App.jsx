@@ -6,42 +6,140 @@ import './App.css'
 import RecordRTCPromisesHandler from 'recordrtc'
 import RecordRTC from 'recordrtc'
 function App() {
+  const [apiKey, setApiKey] = useState(null)
   const [wsUrl, setWsUrl] = useState(null)
   const [socket, setSocket] = useState(null)
+  const [recorder, setRecorder] = useState(null)
   const [audioSrc, setAudioSrc] = useState(null)
-  const [transcript, setTranscript] = useState("transcription will appear here")
+  var transcript = ""
+  const [viewTranscript, setTranscript] = useState(["Transcript will show here"])
   
       function saveWsUrl(event) {
 
         event.preventDefault();
         const formData = new FormData(event.target);
         const query = formData.get("query");
-        console.log(`WS Url '${query}'`);
         setWsUrl(query);
-        console.log(wsUrl)
-        console.log(audio)
 
       } 
+
+      function saveApiKey(event) {
+
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const query = formData.get("query");
+        setApiKey(query);
+
+      } 
+
+      function createLiveTranscription() {
+        console.log("Creating live transcription")
+        console.log(apiKey)
+        const body = {
+          encoding: "wav/pcm",
+          //bit_depth: 16,
+          sample_rate: 48000,
+          channels: 1,
+          // custom_metadata: {
+          //   user: "John Doe"
+          // },
+          // endpointing: 0.3,
+          // maximum_duration_without_endpointing: 30,
+          language_config: {
+            //languages: [],
+            code_switching: true
+          },
+          // pre_processing: {
+          //   audio_enhancer: false,
+          //   speech_threshold: 0.8
+          // },
+          // realtime_processing: {
+          //   words_accurate_timestamps: false,
+          //   custom_vocabulary: false,
+          //   custom_vocabulary_config: {
+          //     vocabulary: ["Gladia"]
+          //   },
+          //   named_entity_recognition: false,
+          //   sentiment_analysis: false
+          // },
+          // post_processing: {
+          //   summarization: false,
+          //   summarization_config: {
+          //     type: "general"
+          //   },
+          //   chapterization: false
+          // },
+          // messages_config: {
+          //   receive_partial_transcripts: true,
+          //   receive_final_transcripts: true,
+          //   receive_speech_events: true,
+          //   receive_pre_processing_events: true,
+          //   receive_realtime_processing_events: true,
+          //   receive_post_processing_events: true,
+          //   receive_acknowledgments: true,
+          //   receive_errors: true,
+          //   receive_lifecycle_events: false
+          // },
+          // callback: false,
+          // callback_config: {
+          //   url: "https://callback.example",
+          //   receive_partial_transcripts: false,
+          //   receive_final_transcripts: true,
+          //   receive_speech_events: false,
+          //   receive_pre_processing_events: true,
+          //   receive_realtime_processing_events: true,
+          //   receive_post_processing_events: true,
+          //   receive_acknowledgments: false,
+          //   receive_errors: false,
+          //   receive_lifecycle_events: true
+          // }
+        };
+        const options = {
+          method: 'POST',
+          headers: {
+            'x-gladia-key': apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        };
+        
+        fetch('https://api.gladia.io/v2/live', options)
+          .then(response => response.json())
+          .then(response => {
+            console.log(response); 
+            setWsUrl(response.url)})
+
+          .catch(err => console.error(err));
+      }
+
+      function resetTranscript() {
+        console.log(transcript)
+        transcript = transcript + " coucou"
+        console.log(transcript)
+      }
 
       function startTranscription() {
 
         console.log("Starting transcription"); 
         console.log(wsUrl)
-        setTranscript("")
         const socket = new WebSocket(wsUrl);
+        setTranscript("")
 
         socket.addEventListener("message", function(event) {
           // All the messages we are sending are in JSON format
           const message = JSON.parse(event.data.toString());
           if (message.type === 'transcript' && message.data.is_final) {
-            setTranscript(transcript + message.data.utterance.text)
-            //console.log(`${message.data.id}: ${message.data.utterance.text}`)
+            console.log(transcript)
+            console.log(message.data.utterance.text)
+            transcript = transcript + " " + message.data.utterance.text
+            setTranscript(transcript)
           }
       
           console.log(message);
         });
       
         socket.onopen = () => {
+          setSocket(socket)
           console.log("WebSocket connection established");
         
           navigator.mediaDevices.getUserMedia({
@@ -69,24 +167,9 @@ function App() {
                   });
                 await recorder.startRecording();
   
-  
-                const sleep = m => new Promise(r => setTimeout(r, m));
-  
-                await sleep(40000);
-              
-                  recorder.stopRecording(function() {
-                      let blob = recorder.getBlob();
-                      console.log("blob")
-                      console.log(blob)
-                      setAudioSrc(URL.createObjectURL(blob))
-                  });
-
-  
+                setRecorder(recorder)              
               });
-
-  
         };
-
         socket.onerror = (error) => {
           console.error("WebSocket error:", error);
         };
@@ -98,24 +181,47 @@ function App() {
       function closeWS() {
         console.log("Closing WS");  
         console.log(socket)
+
+        recorder.stopRecording(function() {
+          let blob = recorder.getBlob();
+          console.log("blob")
+          console.log(blob)
+          setAudioSrc(URL.createObjectURL(blob))
+      });
+
         socket.close();
       }
 
   return (
     <>
       <h1>Gladia Live Transcription Demo</h1>
-      <div className="card">
+      <div className="two-columns">
+        <div className="sidebar">
+        <form onSubmit={saveApiKey}>
+          <input name="query"  placeholder="API Key" />
+          <button type="submit">Save key</button>
+        </form>
+        <button onClick={createLiveTranscription} disabled={!apiKey}>Create live transcription</button>
+
+{/* 
         <form onSubmit={saveWsUrl}>
           <input name="query"  placeholder="WS URL" />
           <button type="submit">Submit</button>
         </form>
+         */}
+        {wsUrl}
+        <button onClick={startTranscription} disabled={!wsUrl}>Open socket and start recording</button>
 
-        <button onClick={startTranscription} disabled={!wsUrl}>Open socket</button>
+        <button onClick={closeWS} disabled={!socket}>Close Socket</button>
+        <button onClick={resetTranscript}>Reset transcript</button>
 
-        <button onClick={closeWS} disabled={!socket}>Close WS</button>
-        <p>{transcript}</p>
-        <audio src={audioSrc} controls />
-      </div>
+        </div>
+        <div className="content">
+          <audio src={audioSrc} controls />
+          <p>{viewTranscript}</p>
+
+        </div>
+    </div>
     </>
   )
 }
