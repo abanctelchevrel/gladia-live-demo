@@ -10,7 +10,10 @@ function App() {
   const [wsUrl, setWsUrl] = useState(null)
   const [socket, setSocket] = useState(null)
   const [recorder, setRecorder] = useState(null)
+  const [codeSwitching, setCodeSwitching] = useState(false)
+  const [audioEnhancer, setAudioEnhancer] = useState(false)
   const [audioSrc, setAudioSrc] = useState(null)
+  const [isRecording, setIsRecording] = useState(false)
   var transcript = ""
   const [viewTranscript, setTranscript] = useState(["Transcript will show here"])
   
@@ -47,12 +50,12 @@ function App() {
           // maximum_duration_without_endpointing: 30,
           language_config: {
             //languages: [],
-            code_switching: true
+            code_switching: codeSwitching
           },
-          // pre_processing: {
-          //   audio_enhancer: false,
+           pre_processing: {
+             audio_enhancer: audioEnhancer,
           //   speech_threshold: 0.8
-          // },
+           },
           // realtime_processing: {
           //   words_accurate_timestamps: false,
           //   custom_vocabulary: false,
@@ -108,33 +111,23 @@ function App() {
           .then(response => {
             console.log(response); 
             setWsUrl(response.url)})
-
           .catch(err => console.error(err));
       }
 
-      function resetTranscript() {
-        console.log(transcript)
-        transcript = transcript + " coucou"
-        console.log(transcript)
-      }
 
       function startTranscription() {
 
         console.log("Starting transcription"); 
-        console.log(wsUrl)
         const socket = new WebSocket(wsUrl);
         setTranscript("")
-
+        setIsRecording(true)
         socket.addEventListener("message", function(event) {
-          // All the messages we are sending are in JSON format
           const message = JSON.parse(event.data.toString());
           if (message.type === 'transcript' && message.data.is_final) {
-            console.log(transcript)
-            console.log(message.data.utterance.text)
             transcript = transcript + " " + message.data.utterance.text
             setTranscript(transcript)
           }
-      
+    
           console.log(message);
         });
       
@@ -157,8 +150,6 @@ function App() {
                       const buffer = await blob.arrayBuffer();
                       // Remove WAV header
                       const modifiedBuffer = buffer.slice(44);
-                      console.log("modifiedBuffer")
-                      console.log(modifiedBuffer)
                       socket?.send(modifiedBuffer);
                     },
                     sampleRate: 48000,
@@ -179,8 +170,7 @@ function App() {
 
 
       function closeWS() {
-        console.log("Closing WS");  
-        console.log(socket)
+        setIsRecording(false)
 
         recorder.stopRecording(function() {
           let blob = recorder.getBlob();
@@ -188,40 +178,55 @@ function App() {
           console.log(blob)
           setAudioSrc(URL.createObjectURL(blob))
       });
-
         socket.close();
+
       }
 
   return (
     <>
-      <h1>Gladia Live Transcription Demo</h1>
-      <div className="two-columns">
-        <div className="sidebar">
-        <form onSubmit={saveApiKey}>
+      
+
+
+      <div class="left-sidebar-grid">
+          <header class="header"><h1>Gladia Live Transcription Demo</h1></header>
+          <main class="main-content">
+
+          <audio src={audioSrc} controls className={!audioSrc? 'hidden' : undefined}/>
+          <p>{viewTranscript}
+            <span className={!isRecording? 'hidden' : undefined}>
+              <svg height="20" width="25" className="blinking" >
+                <circle cx="15" cy="10" r="10" fill="#333" />
+              </svg>
+            </span>
+
+            </p>
+          </main>
+          <section class="left-sidebar">
+          <form onSubmit={saveApiKey}>
           <input name="query"  placeholder="API Key" />
-          <button type="submit">Save key</button>
+          <button type="submit">Use this key</button>
         </form>
-        <button onClick={createLiveTranscription} disabled={!apiKey}>Create live transcription</button>
-
-{/* 
-        <form onSubmit={saveWsUrl}>
-          <input name="query"  placeholder="WS URL" />
-          <button type="submit">Submit</button>
-        </form>
-         */}
-        {wsUrl}
-        <button onClick={startTranscription} disabled={!wsUrl}>Open socket and start recording</button>
-
-        <button onClick={closeWS} disabled={!socket}>Close Socket</button>
-        <button onClick={resetTranscript}>Reset transcript</button>
+        <div className="limiter">
+          <label className="checkbox">
+              <input type="checkbox" checked={codeSwitching} onChange={() => setCodeSwitching(!codeSwitching)} />
+              Code Switching
+            </label>
+            <label className="checkbox">
+              <input type="checkbox" checked={audioEnhancer} onChange={() => setAudioEnhancer(!audioEnhancer)} />
+              Audio Enhancer
+            </label>
+            <button onClick={createLiveTranscription} disabled={!apiKey}>Create live transcription</button>
 
         </div>
-        <div className="content">
-          <audio src={audioSrc} controls />
-          <p>{viewTranscript}</p>
+
+        <div className="limiter">
+          <button onClick={startTranscription} disabled={!wsUrl}>Open socket and start recording 🎤</button>
+          <button onClick={closeWS} disabled={!socket}>Close Socket</button>
 
         </div>
-    </div>
+          </section>
+          <footer class="footer"><a href="https://github.com/abanctelchevrel/gladia-live-demo" style={{color: 'grey'}}>Github repo</a></footer>
+      </div>
     </>
   )
 }

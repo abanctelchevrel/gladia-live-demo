@@ -1,8 +1,9 @@
-# React + Vite
+# Gladia live demo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 🔍 View Project
+Visit: https://gladia-live-demo.pages.dev
+Dash: https://dash.cloudflare.com/?to=/:account/workers/services/view/gladia-live-demo
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 💻 Continue Developing
+Start dev server: npm run dev
+Deploy : npm run deploy
